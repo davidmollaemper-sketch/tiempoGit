@@ -6,10 +6,9 @@ function App() {
   const [city, setCity] = useState("Valencia");
   const [loading, setLoading] = useState(true);
 
-  // URL desde .env
   const API_URL = process.env.REACT_APP_API_URL;
 
-  // PWA install
+
   useEffect(() => {
     const handler = (e) => {
       e.preventDefault();
@@ -23,7 +22,6 @@ function App() {
     };
   }, []);
 
-  // 🌤️ useEffect del clima (AQUÍ ESTÁ EL IMPORTANTE)
   useEffect(() => {
     const fetchWeather = async () => {
       setLoading(true);
@@ -70,12 +68,11 @@ function App() {
     fetchWeather();
   }, [city, API_URL]);
 
-  // LOADING
   if (loading) {
     return <p style={{ textAlign: "center" }}>Cargando...</p>;
   }
 
-  // EMPTY SAFE
+
   if (!weather || weather.length === 0) {
     return <p style={{ textAlign: "center" }}>Sin datos disponibles</p>;
   }
