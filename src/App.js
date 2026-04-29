@@ -2,74 +2,134 @@ import { useEffect, useState } from "react";
 import "./App.css";
 
 function App() {
-  // Estado
-
   const [weather, setWeather] = useState([]);
   const [city, setCity] = useState("Valencia");
+  const [loading, setLoading] = useState(true);
 
-  const API_KEY = process.env.REACT_APP_API_KEY;
+  // URL desde .env
+  const API_URL = process.env.REACT_APP_API_URL;
 
-  // Fetch Datos
-
+  // PWA install
   useEffect(() => {
-    fetch(`https://api.weatherbit.io/v2.0/forecast/daily?city=${city}&country=ES&days=16&lang=es&key=${API_KEY}`)
-      .then(res => res.json())
-      .then(data => setWeather(data.data));
-  }, [city, API_KEY]);
+    const handler = (e) => {
+      e.preventDefault();
+      window.deferredPrompt = e;
+    };
 
-  // Carga
+    window.addEventListener("beforeinstallprompt", handler);
 
-    if (weather.length === 0) {
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+    };
+  }, []);
+
+  // 🌤️ useEffect del clima (AQUÍ ESTÁ EL IMPORTANTE)
+  useEffect(() => {
+    const fetchWeather = async () => {
+      setLoading(true);
+
+      try {
+        let lat = 39.4699;
+        let lon = -0.3763;
+
+        if (city === "Madrid") {
+          lat = 40.4168;
+          lon = -3.7038;
+        }
+
+        if (city === "Barcelona") {
+          lat = 41.3851;
+          lon = 2.1734;
+        }
+
+        const res = await fetch(
+          `${API_URL}?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min&timezone=Europe%2FMadrid`
+        );
+
+        const data = await res.json();
+
+        const formatted = data.daily.time.map((date, i) => ({
+          datetime: date,
+          temp: data.daily.temperature_2m_max[i],
+          weather: {
+            description: "Clima",
+            icon: "c01d"
+          }
+        }));
+
+        setWeather(formatted);
+
+      } catch (error) {
+        console.log("Error API:", error);
+        setWeather([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchWeather();
+  }, [city, API_URL]);
+
+  // LOADING
+  if (loading) {
     return <p style={{ textAlign: "center" }}>Cargando...</p>;
   }
 
-  // Calculos del maximo y minimo
-  
-  const hottest = Math.max(...weather.map(day => day.temp));
-  const coldest = Math.min(...weather.map(day => day.temp));
+  // EMPTY SAFE
+  if (!weather || weather.length === 0) {
+    return <p style={{ textAlign: "center" }}>Sin datos disponibles</p>;
+  }
 
-  // Funciones
-  
+  const hottest = Math.max(...weather.map(d => d.temp));
+  const coldest = Math.min(...weather.map(d => d.temp));
+
   const formatDate = (date) => {
     const d = new Date(date);
-    const day = String(d.getDate()).padStart(2, "0");
-    const month = String(d.getMonth() + 1).padStart(2, "0");
-    return `${day}/${month}`;
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
   };
 
   const getColor = (temp) => {
-    if (temp < 10) return "#74b9ff";   // temperatura fria
-    if (temp < 20) return "#55efc4";   // temperatura media
-    if (temp < 30) return "#ffeaa7";   // temperatura caliente
-    return "#ff7675";                   // temperatura muy caliente
+    if (temp < 10) return "#74b9ff";
+    if (temp < 20) return "#55efc4";
+    if (temp < 30) return "#ffeaa7";
+    return "#ff7675";
   };
 
   return (
     <div className="main">
 
-     
       <h1>Tiempo en {city}</h1>
 
-      
       <div className="top">
         <button onClick={() => setCity("Valencia")}>Valencia</button>
         <button onClick={() => setCity("Madrid")}>Madrid</button>
         <button onClick={() => setCity("Barcelona")}>Barcelona</button>
+
+        <button
+          onClick={async () => {
+            const prompt = window.deferredPrompt;
+            if (prompt) {
+              prompt.prompt();
+              await prompt.userChoice;
+              window.deferredPrompt = null;
+            }
+          }}
+        >
+          Instalar
+        </button>
       </div>
 
-      
       <div className="list">
         {weather.map((day, i) => {
-          const isHottest = day.temp === hottest;
-          const isColdest = day.temp === coldest;
+          const isHot = day.temp === hottest;
+          const isCold = day.temp === coldest;
 
           return (
             <div
               key={i}
-              className={`box ${isHottest ? "hot" : ""} ${isColdest ? "cold" : ""}`}
+              className={`box ${isHot ? "hot" : ""} ${isCold ? "cold" : ""}`}
               style={{ background: getColor(day.temp) }}
             >
-              {/* Fecha */}
               <p className="day">{formatDate(day.datetime)}</p>
 
               <img
@@ -80,8 +140,8 @@ function App() {
               <p className="temp">{day.temp}°C</p>
               <p>{day.weather.description}</p>
 
-              {isHottest && <span className="fire">🔥</span>}
-              {isColdest && <span className="snow">❄️</span>}
+              {isHot && <span>🔥</span>}
+              {isCold && <span>❄️</span>}
             </div>
           );
         })}
